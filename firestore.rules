@@ -1,0 +1,28 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── User profiles ────────────────────────────────────────────────────────
+    match /users/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // ── Run history ──────────────────────────────────────────────────────────
+    match /users/{uid}/runs/{runId} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // ── Personal bests ───────────────────────────────────────────────────────
+    match /users/{uid}/personalBests/{pbId} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // ── Live tracking sessions ───────────────────────────────────────────────
+    // An athlete can write their own live session document.
+    // Any authenticated user (e.g. a coach) can read live sessions.
+    match /liveSessions/{uid} {
+      allow read:  if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == uid;
+    }
+  }
+}
