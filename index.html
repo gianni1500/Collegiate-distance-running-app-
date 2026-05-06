@@ -1,0 +1,1711 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Collegiate Runner – Prototype</title>
+  <link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.css" crossorigin="" />
+  <style>
+    /* ── Reset & Base ────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0d0d1a;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      min-height: 100vh;
+      padding: 24px 16px 48px;
+      color: #fff;
+    }    
+    h1.page-title {
+      font-size: 13px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: #e94560;
+      margin-bottom: 20px;
+      opacity: 0.9;
+    }
+
+    /* ── Phone Shell ─────────────────────────────────────── */
+    .phone {
+      width: 375px;
+      height: 780px;
+      background: #1a1a2e;
+      border-radius: 44px;
+      box-shadow: 0 32px 80px rgba(0,0,0,.7), 0 0 0 8px #111, 0 0 0 10px #222;
+      overflow: hidden;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+    /* Notch */
+    .phone::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 50%; transform: translateX(-50%);
+      width: 120px; height: 28px;
+      background: #111;
+      border-radius: 0 0 18px 18px;
+      z-index: 100;
+    }
+    /* Status bar */
+    .status-bar {
+      height: 44px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      padding: 0 24px 4px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #fff;
+      flex-shrink: 0;
+      z-index: 10;
+    }
+    .status-bar .time { margin-left: 28px; }
+    .status-bar .icons { display: flex; gap: 6px; align-items: center; }
+
+    /* ── Screen Container ────────────────────────────────── */
+    .screen-wrap {
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+    }
+    .screen {
+      position: absolute;
+      inset: 0;
+      background: #1a1a2e;
+      overflow-y: auto;
+      overflow-x: hidden;
+      display: none;
+      flex-direction: column;
+      animation: slideIn .22s ease;
+    }
+    .screen.active { display: flex; }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(24px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    /* ── Scrollable content padding ─────────────────────── */
+    .scroll-content { padding: 24px 20px 32px; flex: 1; }
+
+    /* ── Bottom Tab Bar ──────────────────────────────────── */
+    .tab-bar {
+      display: none;
+      height: 68px;
+      background: #16213e;
+      border-top: 1px solid #0f3460;
+      flex-shrink: 0;
+      align-items: stretch;
+    }
+    .tab-bar.visible { display: flex; }
+    .tab-btn {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      cursor: pointer;
+      border: none;
+      background: none;
+      color: #666;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: .5px;
+      transition: color .15s;
+      padding-bottom: 8px;
+    }
+    .tab-btn.active { color: #e94560; }
+    .tab-btn svg { width: 22px; height: 22px; }
+
+    /* ── Typography ──────────────────────────────────────── */
+    .screen-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 20px;
+    }
+    .section-label {
+      font-size: 11px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: #888;
+      margin: 20px 0 8px;
+    }
+    .label { font-size: 13px; color: #aaa; margin-bottom: 6px; }
+
+    /* ── Buttons ─────────────────────────────────────────── */
+    .btn-primary {
+      width: 100%;
+      padding: 15px;
+      background: #e94560;
+      border: none;
+      border-radius: 12px;
+      color: #fff;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: .3px;
+      transition: opacity .15s, transform .1s;
+    }
+    .btn-primary:active { transform: scale(.97); opacity: .9; }
+    .btn-secondary {
+      width: 100%;
+      padding: 13px;
+      background: transparent;
+      border: 1.5px solid #e94560;
+      border-radius: 12px;
+      color: #e94560;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .btn-secondary:hover { background: rgba(233,69,96,.08); }
+    .btn-danger {
+      width: 100%;
+      padding: 14px;
+      background: rgba(233,69,96,.15);
+      border: 1.5px solid #e94560;
+      border-radius: 12px;
+      color: #e94560;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+
+    /* ── Inputs ──────────────────────────────────────────── */
+    .input {
+      width: 100%;
+      padding: 14px 16px;
+      background: #16213e;
+      border: 1.5px solid #0f3460;
+      border-radius: 10px;
+      color: #fff;
+      font-size: 15px;
+      outline: none;
+      margin-bottom: 14px;
+      transition: border-color .2s;
+    }
+    .input:focus { border-color: #e94560; }
+    .input::placeholder { color: #555; }
+    .pass-wrap { position: relative; width: 100%; }
+    .pass-wrap .input { padding-right: 44px; width: 100%; box-sizing: border-box; }
+    .pass-eye {
+      position: absolute; right: 12px; top: 50%; transform: translateY(-60%);
+      background: none; border: none; cursor: pointer;
+      color: #888; font-size: 17px; padding: 4px; line-height: 1;
+      user-select: none;
+    }
+    .pass-eye:hover { color: #ccc; }
+
+    /* ── Auth Screen ─────────────────────────────────────── */
+    #screen-login .scroll-content,
+    #screen-signup .scroll-content {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      flex: 1;
+      padding-top: 40px;
+    }
+    .app-logo {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+    .app-logo .logo-icon {
+      font-size: 48px;
+      display: block;
+      margin-bottom: 8px;
+    }
+    .app-logo .logo-name {
+      font-size: 26px;
+      font-weight: 800;
+      color: #fff;
+      letter-spacing: -0.5px;
+    }
+    .app-logo .logo-sub {
+      font-size: 12px;
+      color: #888;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+    .auth-footer {
+      text-align: center;
+      margin-top: 16px;
+      font-size: 13px;
+      color: #888;
+    }
+    .auth-footer a { color: #e94560; cursor: pointer; text-decoration: none; font-weight: 600; }
+    .forgot-link {
+      text-align: right;
+      color: #e94560;
+      font-size: 13px;
+      cursor: pointer;
+      margin-bottom: 20px;
+      display: block;
+    }
+
+    /* ── Home Screen ─────────────────────────────────────── */
+    .greeting { font-size: 24px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+    .greeting-sub { font-size: 13px; color: #888; margin-bottom: 24px; }
+    .start-run-btn {
+      width: 100%;
+      padding: 20px;
+      background: linear-gradient(135deg, #e94560, #c0392b);
+      border: none;
+      border-radius: 16px;
+      color: #fff;
+      font-size: 18px;
+      font-weight: 800;
+      cursor: pointer;
+      letter-spacing: .3px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      box-shadow: 0 8px 24px rgba(233,69,96,.35);
+      transition: transform .1s, box-shadow .1s;
+      margin-bottom: 28px;
+    }
+    .start-run-btn:active { transform: scale(.98); box-shadow: 0 4px 12px rgba(233,69,96,.25); }
+    .run-card {
+      background: #16213e;
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .run-card:hover { background: #1a2a4a; }
+    .run-card-dist { font-size: 18px; font-weight: 700; color: #fff; }
+    .run-card-meta { font-size: 12px; color: #888; margin-top: 2px; }
+    .run-card-date { font-size: 11px; color: #555; margin-top: 3px; }
+    .badges { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+    .badge-pb {
+      background: linear-gradient(135deg, #f1c40f, #e67e22);
+      color: #1a1a2e;
+      font-size: 10px;
+      font-weight: 800;
+      padding: 2px 7px;
+      border-radius: 20px;
+      white-space: nowrap;
+    }
+    .badge-goal {
+      background: rgba(46,204,113,.2);
+      color: #2ecc71;
+      border: 1px solid #2ecc71;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 20px;
+    }
+
+    /* ── Pre-Run Setup ───────────────────────────────────── */
+    .chip-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+    .chip {
+      padding: 8px 16px;
+      border-radius: 20px;
+      border: 1.5px solid #0f3460;
+      background: #16213e;
+      color: #888;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .chip.selected {
+      background: #e94560;
+      border-color: #e94560;
+      color: #fff;
+    }
+    .time-row { display: flex; gap: 10px; margin-bottom: 6px; }
+    .time-row .input { margin-bottom: 0; }
+    .time-sep { display: flex; align-items: center; color: #888; font-size: 18px; font-weight: 300; }
+    .pace-display {
+      background: #16213e;
+      border-radius: 10px;
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    .pace-display .pace-val { font-size: 22px; font-weight: 800; color: #e94560; }
+    .pace-display .pace-lbl { font-size: 11px; color: #888; margin-top: 2px; }
+    .intensity-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 20px;
+    }
+    .intensity-dot {
+      flex: 1;
+      height: 6px;
+      border-radius: 3px;
+      background: #0f3460;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .intensity-dot.on { background: #e94560; }
+    .trigger-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid #16213e;
+    }
+    .trigger-name { font-size: 14px; color: #ccc; }
+    /* Toggle Switch */
+    .toggle { position: relative; width: 44px; height: 24px; cursor: pointer; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .slider-track {
+      position: absolute;
+      inset: 0;
+      background: #333;
+      border-radius: 24px;
+      transition: background .2s;
+    }
+    .slider-track::before {
+      content: '';
+      position: absolute;
+      width: 18px; height: 18px;
+      left: 3px; top: 3px;
+      background: #fff;
+      border-radius: 50%;
+      transition: transform .2s;
+    }
+    .toggle input:checked + .slider-track { background: #e94560; }
+    .toggle input:checked + .slider-track::before { transform: translateX(20px); }
+    .back-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: none;
+      border: none;
+      color: #e94560;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-bottom: 16px;
+      padding: 0;
+    }
+
+    /* ── Active Run ──────────────────────────────────────── */
+    #screen-activerun { background: #1a1a2e; }
+    .map-placeholder {
+      width: 100%;
+      height: 300px;
+      background: #0f1b2d;
+      position: relative;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    #liveMap { position: absolute; inset: 0; z-index: 1; }
+    .map-label {
+      position: absolute;
+      bottom: 8px; right: 10px;
+      font-size: 10px;
+      color: #ccc;
+      letter-spacing: .5px;
+      z-index: 10;
+      background: rgba(0,0,0,.5);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    .mapboxgl-map { background: #1a2a3a; }
+    /* keep Mapbox logo but hide extra controls */
+    .mapboxgl-ctrl-top-right { display: none !important; }
+    .run-stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      padding: 16px;
+    }
+    .stat-tile {
+      background: #16213e;
+      border-radius: 12px;
+      padding: 14px;
+      text-align: center;
+    }
+    .stat-tile.full { grid-column: 1 / -1; }
+    .stat-val { font-size: 30px; font-weight: 800; color: #fff; line-height: 1; }
+    .stat-val.accent { color: #e94560; }
+    .stat-val.green  { color: #2ecc71; }
+    .stat-val.yellow { color: #f1c40f; }
+    .stat-lbl { font-size: 11px; color: #888; margin-top: 4px; letter-spacing: .5px; }
+    .pace-delta-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+      margin-top: 6px;
+    }
+    .pace-delta-tag.ahead  { background: rgba(46,204,113,.2);  color: #2ecc71; }
+    .pace-delta-tag.behind { background: rgba(233,69,96,.2);   color: #e94560; }
+    .run-controls {
+      padding: 12px 16px 24px;
+      display: flex;
+      gap: 10px;
+    }
+    .btn-finish {
+      flex: 1;
+      padding: 16px;
+      background: #e94560;
+      border: none;
+      border-radius: 14px;
+      color: #fff;
+      font-size: 17px;
+      font-weight: 800;
+      cursor: pointer;
+      letter-spacing: .3px;
+    }
+    .btn-pause {
+      width: 56px;
+      height: 56px;
+      background: #16213e;
+      border: 1.5px solid #0f3460;
+      border-radius: 14px;
+      color: #fff;
+      font-size: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ── Post-Run Summary ────────────────────────────────── */
+    .banner {
+      width: 100%;
+      padding: 14px;
+      border-radius: 12px;
+      text-align: center;
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+    .banner.pb      { background: linear-gradient(135deg, rgba(241,196,15,.25), rgba(230,126,34,.25)); color: #f1c40f; border: 1px solid rgba(241,196,15,.4); }
+    .banner.goal     { background: rgba(46,204,113,.15); color: #2ecc71; border: 1px solid rgba(46,204,113,.4); }
+    .banner.no-goal  { background: rgba(233,69,96,.15);  color: #e94560; border: 1px solid rgba(233,69,96,.4); }
+    .banner.verdict  { font-size: 20px; padding: 18px; margin-bottom: 14px; border-radius: 14px; }
+    .goal-compare {
+      background: #16213e;
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-bottom: 14px;
+    }
+    .goal-compare-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 0;
+      border-bottom: 1px solid #0f3460;
+      font-size: 13px;
+    }
+    .goal-compare-row:last-child { border-bottom: none; }
+    .goal-compare-row .lbl { color: #888; }
+    .goal-compare-row .val { font-weight: 700; color: #fff; }
+    .goal-compare-row .val.good  { color: #2ecc71; }
+    .goal-compare-row .val.bad   { color: #e94560; }
+    .goal-compare-row .val.neutral { color: #f1c40f; }
+    .summary-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin: 16px 0;
+    }
+    .summary-tile {
+      background: #16213e;
+      border-radius: 12px;
+      padding: 16px;
+      text-align: center;
+    }
+    .summary-tile .s-val { font-size: 22px; font-weight: 800; color: #fff; }
+    .summary-tile .s-lbl { font-size: 11px; color: #888; margin-top: 4px; }
+    .map-summary {
+      width: 100%;
+      height: 160px;
+      background: #0f1b2d;
+      border-radius: 12px;
+      overflow: hidden;
+      position: relative;
+      margin-bottom: 16px;
+    }
+    .map-summary .route-svg {
+      position: absolute;
+      inset: 0;
+      width: 100%; height: 100%;
+    }
+
+    /* ── History ─────────────────────────────────────────── */
+    .history-list { padding: 0 20px 24px; }
+    .history-run-card {
+      background: #16213e;
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .history-run-card:active { background: #1e2f57; }
+    .hist-dist { font-size: 17px; font-weight: 700; color: #fff; }
+    .hist-meta { font-size: 12px; color: #888; margin-top: 2px; }
+    .hist-date { font-size: 11px; color: #555; margin-top: 3px; }
+    .hist-chevron { color: #444; font-size: 18px; margin-left: 8px; flex-shrink: 0; }
+
+    /* ── Profile ─────────────────────────────────────────── */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 0;
+      border-bottom: 1px solid #16213e;
+      margin-bottom: 14px;
+    }
+    .toggle-row-label { font-size: 14px; color: #ccc; }
+    .stats-summary {
+      background: #16213e;
+      border-radius: 12px;
+      padding: 16px;
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .stat-mini { text-align: center; }
+    .stat-mini .val { font-size: 18px; font-weight: 800; color: #e94560; }
+    .stat-mini .lbl { font-size: 10px; color: #888; margin-top: 2px; }
+    .avatar {
+      width: 72px; height: 72px;
+      background: linear-gradient(135deg, #e94560, #8e44ad);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      font-weight: 800;
+      color: #fff;
+      margin: 0 auto 16px;
+    }
+
+    /* ── Motivation overlay ──────────────────────────────── */
+    .motivation-overlay {
+      position: absolute;
+      top: 240px;
+      left: 16px;
+      right: 16px;
+      background: rgba(233,69,96,.92);
+      border-radius: 12px;
+      padding: 12px 16px;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+      text-align: center;
+      display: none;
+      z-index: 50;
+      animation: fadeInUp .3s ease;
+    }
+    .motivation-overlay.visible { display: block; }
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Toast ───────────────────────────────────────────── */
+    .toast {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-80px);
+      background: #16213e;
+      border: 1px solid #e94560;
+      border-radius: 12px;
+      padding: 12px 20px;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      z-index: 9999;
+      transition: transform .3s ease;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+
+    /* ── Nav header ──────────────────────────────────────── */
+    .nav-header {
+      display: flex;
+      align-items: center;
+      padding: 10px 20px 0;
+      flex-shrink: 0;
+    }
+    .nav-title {
+      flex: 1;
+      text-align: center;
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .pass-strength {
+      width: 100%;
+      height: 5px;
+      background: #16213e;
+      border-radius: 4px;
+      margin: 6px 0 4px;
+      overflow: hidden;
+    }
+    #passStrengthFill {
+      height: 100%;
+      width: 0;
+      border-radius: 4px;
+      transition: width .3s, background .3s;
+    }
+    .nav-spacer { width: 30px; }
+
+    /* ── Misc ────────────────────────────────────────────── */
+    .divider { border: none; border-top: 1px solid #16213e; margin: 16px 0; }
+    .empty-state { text-align: center; color: #555; padding: 40px 0; font-size: 14px; }
+    .gap-8  { height: 8px; }
+    .gap-12 { height: 12px; }
+    .gap-16 { height: 16px; }
+  </style>
+</head>
+<body>
+  <p class="page-title">Collegiate Runner — Interactive Prototype</p>
+
+  <!-- Phone frame -->
+  <div class="phone">
+    <!-- Status Bar -->
+    <div class="status-bar">
+      <span class="time" id="statusTime">9:41</span>
+      <div class="icons">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8l3 3 3-3c-1.65-1.66-4.34-1.66-6 0zm-4-4l2 2c2.76-2.76 7.24-2.76 10 0l2-2C15.14 9.14 8.87 9.14 5 13z"/></svg>
+        <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="12"><rect x="1" y="6" width="18" height="12" rx="2" stroke="currentColor" stroke-width="1.5" fill="none"/><rect x="3" y="8" width="12" height="8" rx="1" fill="#e94560"/><path d="M21 10v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      </div>
+    </div>
+
+    <!-- Screens -->
+    <div class="screen-wrap">
+
+      <!-- ══════════ LOGIN ══════════ -->
+      <div class="screen active" id="screen-login">
+        <div class="scroll-content">
+          <div class="app-logo">
+            <span class="logo-icon">🏃</span>
+            <div class="logo-name">Collegiate Runner</div>
+            <div class="logo-sub">Train Smarter. Run Faster.</div>
+          </div>
+          <div class="label">Email</div>
+          <input class="input" type="email" placeholder="runner@university.edu" id="loginEmail" />
+          <div class="label">Password</div>
+          <div class="pass-wrap">
+            <input class="input" type="password" placeholder="••••••••" id="loginPass" />
+            <button class="pass-eye" type="button" onclick="togglePass('loginPass',this)" aria-label="Show password">👁</button>
+          </div>
+          <a class="forgot-link" onclick="goTo('screen-forgot')">Forgot password?</a>
+          <button class="btn-primary" onclick="handleLogin()">Log In</button>
+          <div class="gap-12"></div>
+          <div class="auth-footer">
+            Don't have an account? <a onclick="goTo('screen-signup')">Sign Up</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════ SIGN UP ══════════ -->
+      <div class="screen" id="screen-signup">
+        <div class="nav-header" style="padding-top:16px;">
+          <button class="nav-back" onclick="goTo('screen-login')">‹</button>
+          <div class="nav-title">Create Account</div>
+          <div class="nav-spacer"></div>
+        </div>
+        <div class="scroll-content" style="padding-top:20px;">
+          <div class="label">Full Name *</div>
+          <input class="input" type="text" placeholder="Gianni Henry" id="signupName" />
+          <div class="label">School / Team</div>
+          <input class="input" type="text" placeholder="e.g. State University XC" id="signupTeam" />
+          <div class="label">Email *</div>
+          <input class="input" type="email" placeholder="runner@university.edu" id="signupEmail" />
+          <div class="label">Password *</div>
+          <div class="pass-wrap">
+            <input class="input" type="password" placeholder="Min. 8 chars, 1 number, 1 symbol" id="signupPass" oninput="checkPasswordStrength()" />
+            <button class="pass-eye" type="button" onclick="togglePass('signupPass',this)" aria-label="Show password">👁</button>
+          </div>
+          <div class="pass-strength" id="passStrengthBar">
+            <div id="passStrengthFill"></div>
+          </div>
+          <div id="passStrengthLabel" style="font-size:11px;color:#888;margin:-6px 0 10px;"></div>
+          <div class="label">Confirm Password *</div>
+          <div class="pass-wrap">
+            <input class="input" type="password" placeholder="Re-enter your password" id="signupPassConfirm" oninput="checkPasswordMatch()" />
+            <button class="pass-eye" type="button" onclick="togglePass('signupPassConfirm',this)" aria-label="Show password">👁</button>
+          </div>
+          <div id="passMatchLabel" style="font-size:11px;margin:-6px 0 10px;"></div>
+          <button class="btn-primary" onclick="handleSignUp()">Create Account</button>
+          <div class="gap-12"></div>
+          <div class="auth-footer">
+            Already have an account? <a onclick="goTo('screen-login')">Log In</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════ FORGOT PASSWORD ══════════ -->
+      <div class="screen" id="screen-forgot">
+        <div class="nav-header" style="padding-top:16px;">
+          <button class="nav-back" onclick="goTo('screen-login')">‹</button>
+          <div class="nav-title">Reset Password</div>
+          <div class="nav-spacer"></div>
+        </div>
+        <div class="scroll-content" style="padding-top:24px;">
+          <p style="color:#888;font-size:14px;margin-bottom:24px;line-height:1.6;">
+            Enter your email and we'll send you a link to reset your password.
+          </p>
+          <div class="label">Email</div>
+          <input class="input" type="email" placeholder="runner@university.edu" />
+          <button class="btn-primary" onclick="showToast('📧 Reset link sent!');goTo('screen-login')">Send Reset Link</button>
+        </div>
+      </div>
+
+      <!-- ══════════ HOME ══════════ -->
+      <div class="screen" id="screen-home">
+        <div class="scroll-content">
+          <div class="greeting" id="greetingText">Hey, Gianni 👋</div>
+          <div class="greeting-sub" id="greetingSub">State University XC</div>
+          <button class="start-run-btn" onclick="goTo('screen-prerun')">
+            <span style="font-size:22px;">▶</span> Start a Run
+          </button>
+          <div class="section-label">Recent Runs</div>
+          <div id="homeRunList"></div>
+        </div>
+      </div>
+
+      <!-- ══════════ PRE-RUN SETUP ══════════ -->
+      <div class="screen" id="screen-prerun">
+        <div class="nav-header" style="padding-top:16px;">
+          <button class="nav-back" onclick="goBack()">‹</button>
+          <div class="nav-title">Set Up Your Run</div>
+          <div class="nav-spacer"></div>
+        </div>
+        <div class="scroll-content" style="padding-top:16px;">
+          <div class="label">Distance</div>
+          <div class="chip-row" id="distanceChips"></div>
+          <div class="gap-8"></div>
+          <div class="label">Goal Time</div>
+          <div class="time-row">
+            <input class="input" type="number" placeholder="00" min="0" max="99" id="goalMins" style="text-align:center;" oninput="updateTargetPace()" />
+            <div class="time-sep">:</div>
+            <input class="input" type="number" placeholder="00" min="0" max="59" id="goalSecs" style="text-align:center;" oninput="updateTargetPace()" />
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:#555;margin-bottom:12px;">
+            <span>minutes</span><span>seconds</span>
+          </div>
+          <div class="pace-display">
+            <div class="pace-val" id="pacePreviewVal">—</div>
+            <div class="pace-lbl">TARGET PACE / MILE</div>
+          </div>
+          <div class="label">Motivation Intensity</div>
+          <div class="intensity-row" id="intensityDots"></div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:#555;margin-bottom:20px;"><span>Chill</span><span>Intense</span></div>
+          <div class="section-label">Motivation Triggers</div>
+          <div id="triggerToggles"></div>
+          <div class="gap-16"></div>
+          <button class="btn-primary" onclick="startActiveRun()">Let's Go 🔥</button>
+          <div class="gap-16"></div>
+        </div>
+      </div>
+
+      <!-- ══════════ ACTIVE RUN ══════════ -->
+      <div class="screen" id="screen-activerun">
+        <div class="map-placeholder">
+          <div id="liveMap"></div>
+          <div class="map-label">GPS LIVE</div>
+        </div>
+        <div class="motivation-overlay" id="motivationOverlay"></div>
+        <div class="run-stats-grid">
+          <div class="stat-tile full">
+            <div class="stat-val" id="activeElapsed">0:00</div>
+            <div class="stat-lbl">ELAPSED TIME</div>
+          </div>
+          <div class="stat-tile">
+            <div class="stat-val accent" id="activeDist">0.00</div>
+            <div class="stat-lbl">MILES</div>
+          </div>
+          <div class="stat-tile">
+            <div class="stat-val" id="activePace">—:——</div>
+            <div class="stat-lbl">CURRENT PACE</div>
+            <div id="paceDeltaTag" class="pace-delta-tag ahead" style="display:none;"></div>
+          </div>
+          <div class="stat-tile">
+            <div class="stat-val" style="color:#888;font-size:18px;" id="activeTarget">—:——</div>
+            <div class="stat-lbl">TARGET PACE</div>
+          </div>
+          <div class="stat-tile">
+            <div class="stat-val" id="activeSplits" style="font-size:20px;color:#888;">—</div>
+            <div class="stat-lbl">LAST SPLIT</div>
+          </div>
+        </div>
+        <div class="run-controls">
+          <button class="btn-pause" id="pauseBtn" onclick="togglePause()">⏸</button>
+          <button class="btn-finish" onclick="finishRun()">Finish Run</button>
+        </div>
+      </div>
+
+      <!-- ══════════ POST-RUN SUMMARY ══════════ -->
+      <div class="screen" id="screen-summary">
+        <div class="nav-header" style="padding-top:16px;">
+          <div class="nav-title" id="summaryTitle">Run Summary</div>
+          <div class="nav-spacer"></div>
+        </div>
+        <div class="scroll-content" style="padding-top:12px;">
+          <div id="verdictBanner" class="banner verdict" style="display:none;"></div>
+          <div id="pbBanner" class="banner pb" style="display:none;">🏆 Personal Best!</div>
+          <div class="map-summary">
+            <svg class="route-svg" viewBox="0 0 335 160" preserveAspectRatio="none">
+              <path id="routePath" d="" fill="none" stroke="#fc4c02" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.85"/>
+              <circle id="routeStart" cx="0" cy="0" r="5" fill="#2ecc71"/>
+              <circle id="routeEnd"   cx="0" cy="0" r="5" fill="#e94560"/>
+            </svg>
+          </div>
+          <div class="summary-stats">
+            <div class="summary-tile"><div class="s-val" id="sumDist">—</div><div class="s-lbl">DISTANCE</div></div>
+            <div class="summary-tile"><div class="s-val" id="sumTime">—</div><div class="s-lbl">FINISH TIME</div></div>
+            <div class="summary-tile"><div class="s-val" id="sumPace">—</div><div class="s-lbl">AVG PACE/MI</div></div>
+            <div class="summary-tile"><div class="s-val" id="sumTarget">—</div><div class="s-lbl">GOAL PACE</div></div>
+          </div>
+          <div id="goalCompare" style="display:none;">
+            <div class="section-label">Goal Analysis</div>
+            <div class="goal-compare" id="goalCompareTable"></div>
+          </div>
+          <div class="section-label">Mile Splits</div>
+          <div id="splitsTable"></div>
+          <div class="gap-16"></div>
+          <button class="btn-primary" id="summaryBackBtn" onclick="leaveSummary()">Back to Home</button>
+          <div class="gap-8"></div>
+          <button class="btn-secondary" id="summaryHistBtn" onclick="goTo('screen-history')" style="display:block;">View Run History</button>
+          <div class="gap-16"></div>
+        </div>
+      </div>
+
+      <!-- ══════════ HISTORY ══════════ -->
+      <div class="screen" id="screen-history">
+        <div class="scroll-content" style="padding-bottom:8px;">
+          <div class="screen-title">Run History</div>
+        </div>
+        <div class="history-list" id="historyList"></div>
+      </div>
+
+      <!-- ══════════ PROFILE ══════════ -->
+      <div class="screen" id="screen-profile">
+        <div class="scroll-content">
+          <div class="screen-title">Profile &amp; Settings</div>
+          <div class="avatar" id="profileAvatar">AJ</div>
+          <div class="stats-summary" id="profileStats"></div>
+          <div class="label">Full Name</div>
+          <input class="input" type="text" id="profileName" value="Gianni Henry" />
+          <div class="label">School / Team</div>
+          <input class="input" type="text" id="profileTeam" value="State University XC" />
+          <div class="toggle-row">
+            <span class="toggle-row-label" id="unitsLabel">Units: Miles</span>
+            <label class="toggle">
+              <input type="checkbox" id="unitsToggle" onchange="toggleUnits()" />
+              <span class="slider-track"></span>
+            </label>
+          </div>
+          <button class="btn-primary" onclick="saveProfile()">Save Changes</button>
+          <div class="gap-8"></div>
+          <button class="btn-danger" onclick="handleLogout()">Log Out</button>
+          <div class="gap-16"></div>
+        </div>
+      </div>
+
+    </div><!-- /screen-wrap -->
+
+    <!-- Bottom Tab Bar -->
+    <div class="tab-bar" id="tabBar">
+      <button class="tab-btn active" id="tab-home" onclick="switchTab('home')">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+        Home
+      </button>
+      <button class="tab-btn" id="tab-history" onclick="switchTab('history')">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0 0 13 21a9 9 0 0 0 0-18zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
+        History
+      </button>
+      <button class="tab-btn" id="tab-profile" onclick="switchTab('profile')">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+        Profile
+      </button>
+    </div>
+  </div><!-- /phone -->
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+<script>
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  App State
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const state = {
+  user: null,
+  // Registered accounts — keyed by lowercase email
+  accounts: {
+    'gianni@tcu.edu': { uid:'1', displayName:'Gianni Henry', password:'Gianni1!', team:'TCU XC' },
+  },
+  units: 'miles',
+  currentScreen: 'screen-login',
+  previousScreen: null,
+  summaryBackTo: 'screen-home',
+  runConfig: {
+    distanceMeters: 5000,
+    goalSeconds: 0,
+    targetPaceSecPerMile: 0,
+    intensity: 3,
+    triggers: {
+      onStart: true, fallingBehind: true, backOnPace: true,
+      halfwayPoint: true, finalStretch: true,
+    }
+  },
+  activeRun: {
+    running: false, paused: false, elapsed: 0,
+    distanceMeters: 0, timerInterval: null,
+    routePoints: [], splits: [], lastMileMark: 0, motivationFired: {},
+  },
+  runHistory: [
+    { id:1, distanceMeters:5000,  elapsedSeconds:1485, averagePaceSecPerMile:477, startedAt:Date.now()-86400000*2,  isPersonalBest:true,  goalAchieved:true  },
+    { id:2, distanceMeters:3000,  elapsedSeconds:840,  averagePaceSecPerMile:451, startedAt:Date.now()-86400000*5,  isPersonalBest:false, goalAchieved:true  },
+    { id:3, distanceMeters:8046,  elapsedSeconds:2640, averagePaceSecPerMile:527, startedAt:Date.now()-86400000*8,  isPersonalBest:false, goalAchieved:false },
+    { id:4, distanceMeters:1609,  elapsedSeconds:318,  averagePaceSecPerMile:318, startedAt:Date.now()-86400000*12, isPersonalBest:false, goalAchieved:false },
+    { id:5, distanceMeters:10000, elapsedSeconds:3120, averagePaceSecPerMile:503, startedAt:Date.now()-86400000*20, isPersonalBest:false, goalAchieved:true  },
+  ],
+};
+
+const DISTANCES = {
+  '1500m':1500, 'Mile':1609, '3K':3000, '5K':5000, '8K':8046, '10K':10000
+};
+const TRIGGERS = [
+  { key:'onStart',       label:'On Run Start'        },
+  { key:'fallingBehind', label:'Falling Behind Pace'  },
+  { key:'backOnPace',    label:'Back on Pace'         },
+  { key:'halfwayPoint',  label:'Halfway Point'        },
+  { key:'finalStretch',  label:'Final Stretch'        },
+];
+const MOTIVATION_MESSAGES = {
+  onStart:       ["Let's get it! Stick to your target pace!", "You've trained for this. Now run it!"],
+  fallingBehind: ["You're slipping — dig in, push harder!", "Behind pace. Pick it up!"],
+  backOnPace:    ["You're back on pace — keep grinding!", "There you go, locked in!"],
+  halfwayPoint:  ["Halfway! Stay focused, you've got this!", "Halfway done. Don't let up!"],
+  finalStretch:  ["Last stretch — everything you've got!", "FINISH STRONG. No regrets!"],
+};
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  Navigation
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function goTo(screenId) {
+  const prev = document.getElementById(state.currentScreen);
+  const next = document.getElementById(screenId);
+  if (!next) return;
+  if (prev) prev.classList.remove('active');
+  next.classList.add('active');
+  state.previousScreen = state.currentScreen;
+  state.currentScreen  = screenId;
+
+  const authScreens = ['screen-login','screen-signup','screen-forgot','screen-activerun'];
+  document.getElementById('tabBar').classList.toggle('visible', !authScreens.includes(screenId));
+
+  ['home','history','profile'].forEach(t => document.getElementById('tab-'+t)?.classList.remove('active'));
+  if (screenId === 'screen-home')    document.getElementById('tab-home')?.classList.add('active');
+  if (screenId === 'screen-history') document.getElementById('tab-history')?.classList.add('active');
+  if (screenId === 'screen-profile') document.getElementById('tab-profile')?.classList.add('active');
+
+  if (screenId === 'screen-prerun')  initPreRun();
+  if (screenId === 'screen-profile') renderProfile();
+  if (screenId === 'screen-history') renderHistory();
+}
+
+function goBack() { goTo(state.previousScreen || 'screen-home'); }
+function switchTab(tab) {
+  goTo({ home:'screen-home', history:'screen-history', profile:'screen-profile' }[tab]);
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  Toast
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  Formatters
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function fmtElapsed(secs) {
+  const h = Math.floor(secs/3600), m = Math.floor((secs%3600)/60), s = secs%60;
+  if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  return `${m}:${String(s).padStart(2,'0')}`;
+}
+function fmtPace(secPerMile) {
+  if (!secPerMile || secPerMile <= 0 || !isFinite(secPerMile)) return '—:——';
+  const m = Math.floor(secPerMile/60), s = Math.round(secPerMile%60);
+  return `${m}:${String(s).padStart(2,'0')}`;
+}
+function fmtDist(meters, units) {
+  return units === 'km'
+    ? (meters/1000).toFixed(2) + ' km'
+    : (meters/1609.344).toFixed(2) + ' mi';
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  Auth
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function togglePass(inputId, btn) {
+  const inp = document.getElementById(inputId);
+  const show = inp.type === 'password';
+  inp.type = show ? 'text' : 'password';
+  btn.textContent = show ? '🙈' : '👁';
+  btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+}
+
+function passwordStrength(p) {
+  let score = 0;
+  if (p.length >= 8)  score++;
+  if (p.length >= 12) score++;
+  if (/[0-9]/.test(p)) score++;
+  if (/[^a-zA-Z0-9]/.test(p)) score++;
+  if (/[A-Z]/.test(p) && /[a-z]/.test(p)) score++;
+  return score; // 0-5
+}
+
+function checkPasswordStrength() {
+  const p = document.getElementById('signupPass').value;
+  const fill  = document.getElementById('passStrengthFill');
+  const label = document.getElementById('passStrengthLabel');
+  const score = passwordStrength(p);
+  const levels = [
+    { pct: '0%',   color: 'transparent', text: '' },
+    { pct: '25%',  color: '#e74c3c',     text: '🔴 Too weak' },
+    { pct: '50%',  color: '#e67e22',     text: '🟠 Weak' },
+    { pct: '70%',  color: '#f1c40f',     text: '🟡 Fair' },
+    { pct: '88%',  color: '#2ecc71',     text: '🟢 Strong' },
+    { pct: '100%', color: '#27ae60',     text: '✅ Very strong' },
+  ];
+  const lv = levels[Math.min(score, 5)];
+  fill.style.width = p.length ? lv.pct : '0%';
+  fill.style.background = lv.color;
+  label.textContent = p.length ? lv.text : '';
+  checkPasswordMatch();
+}
+
+function checkPasswordMatch() {
+  const p1 = document.getElementById('signupPass').value;
+  const p2 = document.getElementById('signupPassConfirm').value;
+  const el = document.getElementById('passMatchLabel');
+  if (!p2) { el.textContent = ''; return; }
+  if (p1 === p2) {
+    el.textContent = '✅ Passwords match';
+    el.style.color = '#2ecc71';
+  } else {
+    el.textContent = '❌ Passwords do not match';
+    el.style.color = '#e94560';
+  }
+}
+
+function handleLogin() {
+  const email = document.getElementById('loginEmail').value.trim().toLowerCase();
+  const pass  = document.getElementById('loginPass').value;
+  if (!email || !pass) { showToast('⚠️ Please fill in all fields'); return; }
+  // Check against stored credentials
+  const stored = state.accounts[email];
+  if (!stored || stored.password !== pass) {
+    showToast('❌ Incorrect email or password');
+    return;
+  }
+  state.user = { uid: stored.uid, displayName: stored.displayName, email, team: stored.team };
+  showToast('👋 Welcome back, ' + stored.displayName.split(' ')[0] + '!');
+  renderHomeRuns(); goTo('screen-home');
+}
+
+function handleSignUp() {
+  const name    = document.getElementById('signupName').value.trim();
+  const email   = document.getElementById('signupEmail').value.trim().toLowerCase();
+  const pass    = document.getElementById('signupPass').value;
+  const confirm = document.getElementById('signupPassConfirm').value;
+  const team    = document.getElementById('signupTeam').value.trim();
+
+  if (!name || !email || !pass || !confirm) {
+    showToast('⚠️ Fill in all required fields'); return;
+  }
+  if (pass.length < 8) {
+    showToast('⚠️ Password must be at least 8 characters'); return;
+  }
+  if (!/[0-9]/.test(pass)) {
+    showToast('⚠️ Password must include at least one number'); return;
+  }
+  if (!/[^a-zA-Z0-9]/.test(pass)) {
+    showToast('⚠️ Password must include at least one symbol (e.g. !@#$)'); return;
+  }
+  if (pass !== confirm) {
+    showToast('⚠️ Passwords do not match'); return;
+  }
+  if (state.accounts[email]) {
+    showToast('⚠️ An account with that email already exists'); return;
+  }
+  const uid = 'u' + Date.now();
+  // Store credentials so login works
+  state.accounts[email] = { uid, displayName: name, password: pass, team };
+  state.user = { uid, displayName: name, email, team };
+  showToast('🎉 Welcome, ' + name.split(' ')[0] + '!');
+  renderHomeRuns(); goTo('screen-home');
+}
+
+function handleLogout() {
+  state.user = null;
+  document.getElementById('loginEmail').value = '';
+  document.getElementById('loginPass').value  = '';
+  goTo('screen-login');
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  Home
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function renderHomeRuns() {
+  const name = (state.user?.displayName || 'Runner').split(' ')[0];
+  document.getElementById('greetingText').textContent = `Hey, ${name} 👋`;
+  document.getElementById('greetingSub').textContent  = state.user?.team || '';
+  const el = document.getElementById('homeRunList');
+  const runs = state.runHistory.slice(0,5);
+  if (!runs.length) { el.innerHTML = '<div class="empty-state">No runs yet. Get out there! 🏃</div>'; return; }
+  el.innerHTML = runs.map(r => `
+    <div class="run-card">
+      <div>
+        <div class="run-card-dist">${fmtDist(r.distanceMeters, state.units)}</div>
+        <div class="run-card-meta">${fmtElapsed(r.elapsedSeconds)} · ${fmtPace(r.averagePaceSecPerMile)}/mi</div>
+        <div class="run-card-date">${new Date(r.startedAt).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</div>
+      </div>
+      <div class="badges">
+        ${r.isPersonalBest ? '<span class="badge-pb">PB 🏆</span>' : ''}
+        ${r.goalAchieved   ? '<span class="badge-goal">Goal ✓</span>'   : ''}
+      </div>
+    </div>`).join('');
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  Pre-Run Setup
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+let selectedDistKey = '5K';
+let intensityLevel  = 3;
+
+function initPreRun() {
+  document.getElementById('distanceChips').innerHTML = Object.keys(DISTANCES).map(k =>
+    `<div class="chip ${k===selectedDistKey?'selected':''}" onclick="selectDist('${k}',this)">${k}</div>`
+  ).join('');
+  document.getElementById('intensityDots').innerHTML = [1,2,3,4,5].map(i =>
+    `<div class="intensity-dot ${i<=intensityLevel?'on':''}" id="dot${i}" onclick="setIntensity(${i})"></div>`
+  ).join('');
+  document.getElementById('triggerToggles').innerHTML = TRIGGERS.map(t =>
+    `<div class="trigger-row">
+       <span class="trigger-name">${t.label}</span>
+       <label class="toggle">
+         <input type="checkbox" id="trig_${t.key}" ${state.runConfig.triggers[t.key]?'checked':''} onchange="setTrigger('${t.key}')"/>
+         <span class="slider-track"></span>
+       </label>
+     </div>`
+  ).join('');
+  updateTargetPace();
+}
+
+function selectDist(key, el) {
+  selectedDistKey = key;
+  state.runConfig.distanceMeters = DISTANCES[key];
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  updateTargetPace();
+}
+
+function setIntensity(lvl) {
+  intensityLevel = lvl;
+  state.runConfig.intensity = lvl;
+  [1,2,3,4,5].forEach(i => document.getElementById('dot'+i)?.classList.toggle('on', i<=lvl));
+}
+
+function setTrigger(key) {
+  state.runConfig.triggers[key] = document.getElementById('trig_'+key).checked;
+}
+
+function updateTargetPace() {
+  const mins = parseInt(document.getElementById('goalMins')?.value||'0',10)||0;
+  const secs = parseInt(document.getElementById('goalSecs')?.value||'0',10)||0;
+  const goalSecs = mins*60 + secs;
+  state.runConfig.goalSeconds = goalSecs;
+  if (goalSecs > 0) {
+    const pace = goalSecs / (state.runConfig.distanceMeters / 1609.344);
+    state.runConfig.targetPaceSecPerMile = pace;
+    document.getElementById('pacePreviewVal').textContent = fmtPace(pace) + ' /mi';
+  } else {
+    state.runConfig.targetPaceSecPerMile = 0;
+    document.getElementById('pacePreviewVal').textContent = '—';
+  }
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  Active Run
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const MAPBOX_TOKEN = 'pk.eyJ1IjoiZ2lhbm5pODAwIiwiYSI6ImNtbHRvZGloZDAyZXAzZG9yeDU4NWhuZHYifQ.zgTV_NQ7QPVeommiLkqGaw';
+let mbMap = null, geolocateCtrl = null;
+let routeCoords = [], routePts = [], tickCount = 0, lastGpsPos = null;
+const RUN_CENTER = { lat: 32.7097, lng: -97.3651 }; // TCU campus — fallback if GPS not yet acquired
+
+function startActiveRun() {
+  if (state.runConfig.goalSeconds <= 0) { showToast('⚠️ Enter a goal time first'); return; }
+  const ar = state.activeRun;
+  ar.running=true; ar.paused=false; ar.elapsed=0; ar.distanceMeters=0;
+  ar.splits=[]; ar.lastMileMark=0; ar.motivationFired={};
+  routeCoords=[]; routePts=[]; tickCount=0; lastGpsPos=null;
+  clearInterval(ar.timerInterval);
+
+  goTo('screen-activerun');
+
+  document.getElementById('activePace').textContent    = '—:——';
+  document.getElementById('activeDist').textContent    = '0.00';
+  document.getElementById('activeElapsed').textContent = '0:00';
+  document.getElementById('activeSplits').textContent  = '—';
+  document.getElementById('activeTarget').textContent  = fmtPace(state.runConfig.targetPaceSecPerMile);
+  document.getElementById('paceDeltaTag').style.display = 'none';
+  document.getElementById('motivationOverlay').classList.remove('visible');
+  document.getElementById('pauseBtn').textContent = '⏸';
+
+  // Map init happens first; GPS is driven entirely through GeolocateControl
+  setTimeout(() => initMap(), 100);
+  if (state.runConfig.triggers.onStart) setTimeout(() => showMotivation('onStart'), 1200);
+  ar.timerInterval = setInterval(runTick, 1000);
+}
+
+// Called every time the device reports a new GPS position
+function onGpsUpdate(pos) {
+  const ar = state.activeRun;
+  if (!ar.running || ar.paused) return;
+
+  const { latitude: lat, longitude: lng, speed } = pos.coords;
+  const coord = [lng, lat];
+
+  if (lastGpsPos) {
+    // Haversine distance increment
+    const R = 6371000;
+    const dLat = (lat - lastGpsPos.lat) * Math.PI / 180;
+    const dLng = (lng - lastGpsPos.lng) * Math.PI / 180;
+    const a = Math.sin(dLat/2)**2 +
+              Math.cos(lastGpsPos.lat * Math.PI/180) * Math.cos(lat * Math.PI/180) * Math.sin(dLng/2)**2;
+    const dist = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    ar.distanceMeters += dist;
+    document.getElementById('activeDist').textContent = (ar.distanceMeters / 1609.344).toFixed(2);
+
+    // Pace from GPS speed (m/s) or derived from distance/time
+    const paceNow = speed && speed > 0.3
+      ? (1609.344 / speed) // sec/mile from m/s
+      : (ar.elapsed > 0 ? ar.elapsed / (ar.distanceMeters / 1609.344) : 0);
+    document.getElementById('activePace').textContent = fmtPace(paceNow);
+
+    const target = state.runConfig.targetPaceSecPerMile;
+    if (target > 0 && paceNow > 0) {
+      const delta = paceNow - target;
+      const tag = document.getElementById('paceDeltaTag');
+      tag.style.display = 'inline-flex';
+      tag.className = 'pace-delta-tag ' + (delta < 0 ? 'ahead' : 'behind');
+      tag.textContent = delta < 0
+        ? `▲ ${fmtPace(Math.abs(delta))} ahead`
+        : `▼ ${fmtPace(delta)} behind`;
+    }
+
+    // Splits
+    const milesDone = ar.distanceMeters / 1609.344;
+    if (Math.floor(milesDone) > ar.lastMileMark) {
+      ar.splits.push(ar.elapsed / milesDone);
+      ar.lastMileMark = Math.floor(milesDone);
+      document.getElementById('activeSplits').textContent = fmtPace(ar.elapsed / milesDone);
+    }
+
+    // Motivation triggers
+    const pct = ar.distanceMeters / state.runConfig.distanceMeters;
+    if (pct>=0.48&&pct<0.55&&!ar.motivationFired.halfwayPoint&&state.runConfig.triggers.halfwayPoint) {
+      ar.motivationFired.halfwayPoint=true; showMotivation('halfwayPoint');
+    }
+    if (pct>=0.8&&!ar.motivationFired.finalStretch&&state.runConfig.triggers.finalStretch) {
+      ar.motivationFired.finalStretch=true; showMotivation('finalStretch');
+    }
+    const avgPace = ar.elapsed > 0 ? ar.elapsed / (ar.distanceMeters / 1609.344) : 0;
+    if (target>0&&!ar.motivationFired.fallingBehind&&avgPace>target+15&&state.runConfig.triggers.fallingBehind) {
+      ar.motivationFired.fallingBehind=true; showMotivation('fallingBehind');
+    }
+
+    if (ar.distanceMeters >= state.runConfig.distanceMeters) finishRun();
+  }
+
+  lastGpsPos = { lat, lng };
+  routeCoords.push(coord);
+  routePts.push(coord);
+  updateMap();
+}
+
+// runTick only handles the elapsed clock now — GPS callback drives everything else
+function runTick() {
+  const ar = state.activeRun;
+  if (!ar.running || ar.paused) return;
+  tickCount++; ar.elapsed++;
+  document.getElementById('activeElapsed').textContent = fmtElapsed(ar.elapsed);
+}
+
+function togglePause() {
+  state.activeRun.paused = !state.activeRun.paused;
+  document.getElementById('pauseBtn').textContent = state.activeRun.paused ? '▶' : '⏸';
+  showToast(state.activeRun.paused ? '⏸ Run paused' : '▶ Run resumed');
+}
+
+function speakText(text) {
+  if (!('speechSynthesis' in window)) return;
+  window.speechSynthesis.cancel(); // stop any current speech first
+  const utt = new SpeechSynthesisUtterance(text);
+  utt.rate = 1.05;
+  utt.pitch = 1.0;
+  utt.volume = 1.0;
+  // Prefer a natural-sounding voice if available
+  const voices = window.speechSynthesis.getVoices();
+  const preferred = voices.find(v => /google|samantha|karen|daniel|ava/i.test(v.name));
+  if (preferred) utt.voice = preferred;
+  window.speechSynthesis.speak(utt);
+}
+
+function showMotivation(key) {
+  const msgs = MOTIVATION_MESSAGES[key] || [];
+  if (!msgs.length) return;
+  const msg = msgs[Math.floor(Math.random() * msgs.length)];
+  const el = document.getElementById('motivationOverlay');
+  el.textContent = '🎙️ ' + msg;
+  el.classList.add('visible');
+  setTimeout(() => el.classList.remove('visible'), 3500);
+  speakText(msg);
+}
+
+function finishRun() {
+  const ar = state.activeRun;
+  clearInterval(ar.timerInterval); ar.running = false;
+  const distMi  = ar.distanceMeters/1609.344;
+  const avgPace = ar.elapsed>0 ? ar.elapsed/distMi : 0;
+  const goalAchieved = state.runConfig.goalSeconds>0 && ar.elapsed<=state.runConfig.goalSeconds;
+  const bestTime = Math.min(...state.runHistory
+    .filter(r => Math.abs(r.distanceMeters-state.runConfig.distanceMeters)<200)
+    .map(r => r.elapsedSeconds), Infinity);
+  const isPersonalBest = ar.elapsed < bestTime;
+
+  const run = {
+    id:Date.now(), distanceMeters:ar.distanceMeters, elapsedSeconds:ar.elapsed,
+    averagePaceSecPerMile:avgPace, targetPaceSecPerMile:state.runConfig.targetPaceSecPerMile,
+    goalSeconds:state.runConfig.goalSeconds,
+    startedAt:Date.now(), isPersonalBest, goalAchieved, splits:[...ar.splits], routePts:[...routePts],
+  };
+  state.runHistory.unshift(run);
+  state.summaryBackTo = 'screen-home';
+  renderSummary(run);
+  goTo('screen-summary');
+}
+
+function resetRun() {
+  tickCount=0;
+  state.activeRun.elapsed=0; state.activeRun.distanceMeters=0;
+  renderHomeRuns();
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  Live Map (Mapbox GL JS — real GPS via GeolocateControl)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function initMap() {
+  if (typeof mapboxgl === 'undefined') return;
+  if (mbMap) { mbMap.remove(); mbMap = null; geolocateCtrl = null; }
+
+  mapboxgl.accessToken = MAPBOX_TOKEN;
+  mbMap = new mapboxgl.Map({
+    container: 'liveMap',
+    style: 'mapbox://styles/mapbox/outdoors-v12',
+    center: [RUN_CENTER.lng, RUN_CENTER.lat],
+    zoom: 17,
+    interactive: true,
+    attributionControl: false,
+    pitchWithRotate: false,
+  });
+
+  // Zoom/compass — top-right corner
+  mbMap.addControl(new mapboxgl.NavigationControl({ showCompass: true, showZoom: true }), 'top-right');
+
+  // GeolocateControl is the ONLY GPS source — it shows the blue dot, accuracy ring,
+  // heading arrow, and fires position events we use to update stats + route trail
+  geolocateCtrl = new mapboxgl.GeolocateControl({
+    positionOptions: { enableHighAccuracy: true, timeout: 6000 },
+    trackUserLocation: true,   // map auto-follows you as you move
+    showUserHeading: true,     // arrow shows direction you're facing
+    showAccuracyCircle: true,  // blue accuracy ring
+  });
+  mbMap.addControl(geolocateCtrl, 'top-right');
+
+  mbMap.on('load', () => {
+    // Orange route trail (drawn from real GPS coords)
+    mbMap.addSource('route', {
+      type: 'geojson',
+      data: { type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} },
+    });
+    mbMap.addLayer({
+      id: 'route-line',
+      type: 'line',
+      source: 'route',
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint: { 'line-color': '#fc4c02', 'line-width': 5, 'line-opacity': 0.95 },
+    });
+
+    // Trigger GPS — slight delay ensures the control is fully mounted
+    setTimeout(() => geolocateCtrl.trigger(), 400);
+  });
+
+  // Every position update from the device fires here — drives ALL stats + route
+  geolocateCtrl.on('geolocate', (e) => {
+    onGpsUpdate(e); // e has e.coords.latitude / longitude / speed (same shape as GeolocationPosition)
+  });
+
+  geolocateCtrl.on('error', (e) => {
+    showToast('⚠️ GPS: ' + (e.message || 'permission denied. Serve via localhost or HTTPS.'));
+  });
+}
+
+// Draws the orange route trail from accumulated real-GPS coordinates
+function updateMap() {
+  if (!mbMap || !mbMap.isStyleLoaded()) return;
+  const src = mbMap.getSource('route');
+  if (src) src.setData({
+    type: 'Feature',
+    geometry: { type: 'LineString', coordinates: routeCoords },
+    properties: {},
+  });
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  Post-Run Summary
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function renderSummary(run) {
+  document.getElementById('pbBanner').style.display = run.isPersonalBest ? 'block' : 'none';
+  document.getElementById('sumDist').textContent    = fmtDist(run.distanceMeters, state.units);
+  document.getElementById('sumTime').textContent    = fmtElapsed(run.elapsedSeconds);
+  document.getElementById('sumPace').textContent    = fmtPace(run.averagePaceSecPerMile);
+  document.getElementById('sumTarget').textContent  = run.targetPaceSecPerMile > 0 ? fmtPace(run.targetPaceSecPerMile) : '—';
+
+  // ── Verdict banner ────────────────────────────────────
+  const verdictEl = document.getElementById('verdictBanner');
+  const hasGoal = run.goalSeconds > 0;
+  let verdictText = '';
+
+  if (hasGoal) {
+    if (run.goalAchieved) {
+      verdictEl.className = 'banner verdict goal';
+      verdictEl.textContent = '✅ Goal Achieved! You crushed it!';
+      verdictText = 'Goal achieved! You crushed it!';
+    } else {
+      const overBy = run.elapsedSeconds - run.goalSeconds;
+      verdictEl.className = 'banner verdict no-goal';
+      verdictEl.textContent = `❌ Goal Missed — over by ${fmtElapsed(overBy)}`;
+      verdictText = `Goal missed. You were over by ${fmtElapsed(overBy)}. Keep grinding!`;
+    }
+    verdictEl.style.display = 'block';
+  } else {
+    verdictEl.style.display = 'none';
+  }
+
+  // Speak the verdict aloud
+  if (verdictText) speakText(verdictText);
+
+  // ── Goal Analysis table ───────────────────────────────
+  const goalSection = document.getElementById('goalCompare');
+  if (hasGoal) {
+    goalSection.style.display = 'block';
+    const timeDiff   = run.elapsedSeconds - run.goalSeconds;
+    const paceDiff   = run.averagePaceSecPerMile - run.targetPaceSecPerMile;
+    const distTarget = run.distanceMeters;
+    const distActual = run.distanceMeters; // same distance; difference is time/pace
+
+    const sign = (n) => n <= 0 ? 'good' : 'bad';
+    const fmtDiff = (secs) => {
+      const abs = Math.abs(secs);
+      return (secs <= 0 ? '-' : '+') + fmtElapsed(abs);
+    };
+    const fmtPaceDiff = (secs) => {
+      const abs = Math.abs(secs);
+      return (secs <= 0 ? '-' : '+') + fmtPace(abs) + '/mi';
+    };
+
+    document.getElementById('goalCompareTable').innerHTML = `
+      <div class="goal-compare-row">
+        <span class="lbl">Goal Time</span>
+        <span class="val neutral">${fmtElapsed(run.goalSeconds)}</span>
+      </div>
+      <div class="goal-compare-row">
+        <span class="lbl">Finish Time</span>
+        <span class="val ${sign(timeDiff)}">${fmtElapsed(run.elapsedSeconds)}</span>
+      </div>
+      <div class="goal-compare-row">
+        <span class="lbl">Time Difference</span>
+        <span class="val ${sign(timeDiff)}">${fmtDiff(timeDiff)}</span>
+      </div>
+      <div class="goal-compare-row">
+        <span class="lbl">Goal Pace</span>
+        <span class="val neutral">${fmtPace(run.targetPaceSecPerMile)}/mi</span>
+      </div>
+      <div class="goal-compare-row">
+        <span class="lbl">Avg Pace</span>
+        <span class="val ${sign(paceDiff)}">${fmtPace(run.averagePaceSecPerMile)}/mi</span>
+      </div>
+      <div class="goal-compare-row">
+        <span class="lbl">Pace Difference</span>
+        <span class="val ${sign(paceDiff)}">${fmtPaceDiff(paceDiff)}</span>
+      </div>
+      <div class="goal-compare-row">
+        <span class="lbl">Distance</span>
+        <span class="val neutral">${fmtDist(distTarget, state.units)}</span>
+      </div>`;
+  } else {
+    goalSection.style.display = 'none';
+  }
+
+  // ── Route SVG ─────────────────────────────────────────
+  const pts = run.routePts || [];
+  if (pts.length > 1) {
+    const W=335, H=160;
+    const lngs = pts.map(p => p[0]), lats = pts.map(p => p[1]);
+    const minLng = Math.min(...lngs), maxLng = Math.max(...lngs);
+    const minLat = Math.min(...lats), maxLat = Math.max(...lats);
+    const rngLng = maxLng - minLng || 0.001, rngLat = maxLat - minLat || 0.001;
+    const toX = lng => ((lng - minLng) / rngLng * (W - 20) + 10).toFixed(1);
+    const toY = lat => ((1 - (lat - minLat) / rngLat) * (H - 20) + 10).toFixed(1);
+    const d = pts.map(([lng,lat],i) => `${i===0?'M':'L'}${toX(lng)} ${toY(lat)}`).join(' ');
+    document.getElementById('routePath').setAttribute('d', d);
+    document.getElementById('routeStart').setAttribute('cx', toX(pts[0][0]));
+    document.getElementById('routeStart').setAttribute('cy', toY(pts[0][1]));
+    document.getElementById('routeEnd').setAttribute('cx',   toX(pts[pts.length-1][0]));
+    document.getElementById('routeEnd').setAttribute('cy',   toY(pts[pts.length-1][1]));
+  }
+
+  // ── Mile Splits ───────────────────────────────────────
+  document.getElementById('splitsTable').innerHTML = run.splits && run.splits.length
+    ? run.splits.map((s, i) => {
+        const diff = run.targetPaceSecPerMile > 0 ? s - run.targetPaceSecPerMile : null;
+        const cls  = diff === null ? '' : diff <= 0 ? 'good' : 'bad';
+        const tag  = diff === null ? '' : `<span style="font-size:11px;color:${diff<=0?'#2ecc71':'#e94560'};margin-left:6px;">${diff<=0?'▲':'▼'}${fmtPace(Math.abs(diff))}</span>`;
+        return `
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid #16213e;">
+            <span style="color:#888;font-size:13px;">Mile ${i+1}</span>
+            <span style="color:#fff;font-size:14px;font-weight:700;" class="${cls}">${fmtPace(s)}/mi ${tag}</span>
+          </div>`;
+      }).join('')
+    : '<div class="empty-state" style="padding:12px 0;">No mile splits recorded.</div>';
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  History
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function viewRunDetail(idx) {
+  const run = state.runHistory[idx];
+  if (!run) return;
+  state.summaryBackTo = 'screen-history';
+  renderSummary(run);
+  // When viewing history, mute the TTS read-aloud
+  window.speechSynthesis && window.speechSynthesis.cancel();
+  const dateLabel = new Date(run.startedAt).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+  document.getElementById('summaryTitle').textContent = dateLabel;
+  document.getElementById('summaryBackBtn').textContent = '← Back to History';
+  document.getElementById('summaryHistBtn').style.display = 'none';
+  goTo('screen-summary');
+}
+
+function leaveSummary() {
+  if (state.summaryBackTo === 'screen-history') {
+    goTo('screen-history');
+  } else {
+    resetRun();
+    goTo('screen-home');
+  }
+  // Reset button labels & title for next fresh run
+  document.getElementById('summaryBackBtn').textContent = 'Back to Home';
+  document.getElementById('summaryHistBtn').style.display = 'block';
+  document.getElementById('summaryTitle').textContent = 'Run Summary';
+}
+
+function renderHistory() {
+  const el = document.getElementById('historyList');
+  if (!state.runHistory.length) { el.innerHTML='<div class="empty-state">No runs recorded yet.</div>'; return; }
+  el.innerHTML = state.runHistory.map((r, i) => `
+    <div class="history-run-card" onclick="viewRunDetail(${i})">
+      <div>
+        <div class="hist-dist">${fmtDist(r.distanceMeters, state.units)}</div>
+        <div class="hist-meta">${fmtElapsed(r.elapsedSeconds)} · ${fmtPace(r.averagePaceSecPerMile)}/mi</div>
+        <div class="hist-date">${new Date(r.startedAt).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <div class="badges">
+          ${r.isPersonalBest ? '<span class="badge-pb">PB 🏆</span>' : ''}
+          ${r.goalAchieved   ? '<span class="badge-goal">Goal ✓</span>'  : ''}
+        </div>
+        <span class="hist-chevron">›</span>
+      </div>
+    </div>`).join('');
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  Profile
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function renderProfile() {
+  const name = state.user?.displayName || 'Gianni Henry';
+  document.getElementById('profileAvatar').textContent = name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+  document.getElementById('profileName').value  = name;
+  document.getElementById('profileTeam').value  = state.user?.team || 'State University XC';
+  const total = state.runHistory.reduce((s,r)=>s+r.distanceMeters/1609.344,0);
+  document.getElementById('profileStats').innerHTML = `
+    <div class="stat-mini"><div class="val">${state.runHistory.length}</div><div class="lbl">Runs</div></div>
+    <div class="stat-mini"><div class="val">${total.toFixed(1)}</div><div class="lbl">Miles</div></div>
+    <div class="stat-mini"><div class="val">${state.runHistory.filter(r=>r.isPersonalBest).length}</div><div class="lbl">PBs</div></div>`;
+}
+
+function toggleUnits() {
+  state.units = document.getElementById('unitsToggle').checked ? 'km' : 'miles';
+  document.getElementById('unitsLabel').textContent = `Units: ${state.units==='km'?'Kilometers':'Miles'}`;
+  renderHomeRuns(); renderHistory();
+}
+
+function saveProfile() {
+  if (state.user) {
+    state.user.displayName = document.getElementById('profileName').value;
+    state.user.team        = document.getElementById('profileTeam').value;
+  }
+  renderProfile(); renderHomeRuns();
+  showToast('✅ Profile saved!');
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  Status bar clock
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function updateClock() {
+  const d=new Date(), h=d.getHours(), m=String(d.getMinutes()).padStart(2,'0');
+  document.getElementById('statusTime').textContent = `${h>12?h-12:h||12}:${m}`;
+}
+setInterval(updateClock, 15000); updateClock();
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  Boot
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+renderHomeRuns(); renderHistory();
+</script>
+<script src="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.js" crossorigin=""></script>
+</body>
+</html>
